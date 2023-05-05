@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ue-import
+  labels:
+    epc-mode: ue-import
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      epc-mode: ue-import
+  template:
+    metadata:
+      labels:
+        epc-mode: ue-import  
+    spec:
+      serviceAccountName: {{ .Release.Name }}-k8s-wait-for
+      initContainers:      
+      - name: wait-for-mongo
+        image: "{{ .Values.k8swait.repository }}:{{ .Values.k8swait.tag }}"
+        imagePullPolicy: {{ .Values.k8swait.pullPolicy }}
+        args:
+          - "pod"
+          - "-lapp=open5gs-mongodb"    
+      containers:      
+      - name: mongo
+        image: "{{ .Values.provisioning.image.repository }}:{{ .Values.provisioning.image.tag }}"
+        command: ["/bin/sh", "-c"]
+        env:
+        - name: DB_URI
+          value: mongodb://{{ .Release.Name }}-mongodb-svc/open5gs
+        args:
+        - mongo mongodb://{{ .Release.Name }}-mongodb-svc/open5gs /tmp/account.js;
+          cp -rf /tmp/open5gs-dbctl /usr/local/bin/open5gs-dbctl;
+          chmod +x /usr/local/bin/open5gs-dbctl;
+          bash -x /tmp/frameroute-ue-1.sh;
+          bash -x /tmp/frameroute-ue-2.sh;
+          sleep infinity;
+        volumeMounts:
+        - name: account-config
+          mountPath: /tmp/account.js
+          subPath: "account.js"
+        - name: db-script
+          mountPath: /tmp/open5gs-dbctl
+          subPath: "open5gs-dbctl"
+        - name: frame-route-1
+          mountPath: /tmp/frameroute-ue-1.sh
+          subPath: "frameroute-ue-1.sh"
+        - name: frame-route-2
+          mountPath: /tmp/frameroute-ue-2.sh
+          subPath: "frameroute-ue-2.sh"                            
+      volumes:
+        - name: account-config
+          configMap:
+            name: {{ .Release.Name }}-ue-provisioning
+        - name: db-script
+          configMap:
+            name: {{ .Release.Name }}-ue-provisioning
+        - name: frame-route-1
+          configMap:
+            name: {{ .Release.Name }}-ue-provisioning
+        - name: frame-route-2
+          configMap:
+            name: {{ .Release.Name }}-ue-provisioning                       

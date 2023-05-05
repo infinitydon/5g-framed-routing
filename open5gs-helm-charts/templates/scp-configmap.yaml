@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-scp-config
+  labels:
+    epc-mode: scp
+data:
+  scp.yaml: |
+    logger:
+        file: /var/log/open5gs/scp.log
+    
+    db_uri: mongodb://{{ .Release.Name }}-mongodb-svc/open5gs
+
+    scp:
+      sbi:
+        - addr: 0.0.0.0
+          advertise: {{ .Release.Name }}-scp.{{ .Release.Namespace }}.svc.cluster.local
+    nrf:
+     sbi:
+       name: {{ .Release.Name }}-nrf.{{ .Release.Namespace }}.svc.cluster.local 
+    sbi:
+        server:
+          no_tls: true
+        client:
+          no_tls: true   

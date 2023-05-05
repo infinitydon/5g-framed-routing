@@ -1,0 +1,34 @@
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ext-test-node
+  labels:
+    epc-mode: upf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      epc-mode: test-node
+  template:
+    metadata:
+      annotations:
+         k8s.v1.cni.cncf.io/networks: '[
+                 { "name": "{{ .Release.Name }}-nad-upf-ext",
+                   "ips": [ {{- cat .Values.testNode.multusIP "/" .Values.testNode.multusNetworkMask | nospace | quote }} ] }
+         ]'     
+      labels:
+        epc-mode: test-node
+    spec:
+      nodeName: {{ .Values.upf.nodeName }}
+      containers:               
+        - name: test-node
+          image: "{{ .Values.testNode.image.repository }}:{{ .Values.testNode.image.tag }}"
+          imagePullPolicy: {{ .Values.testNode.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+          - apt-get -qq update;apt-get -qq install iproute2 tcpdump inetutils-ping -y;
+            ip route add 192.168.20.0/24 via {{ .Values.upf.multusIP }};
+            ip route add 192.168.21.0/24 via {{ .Values.upf.multusIP }};  
+            sleep infinity;        
+          securityContext:
+             privileged: true

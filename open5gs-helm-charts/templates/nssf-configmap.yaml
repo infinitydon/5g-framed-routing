@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-nssf-config
+  labels:
+    epc-mode: nssf
+data:
+  nssf.yaml: |
+    logger:
+        file: /var/log/open5gs/nssf.log   
+
+    nssf:
+      sbi:
+        - addr: 0.0.0.0
+          advertise: {{ .Release.Name }}-nssf.{{ .Release.Namespace }}.svc.cluster.local
+      discovery:
+         delegated: no           
+      nsi:
+      - addr: {{ .Release.Name }}-scp.{{ .Release.Namespace }}.svc.cluster.local
+        port: 80
+        s_nssai:
+          sst: "{{ .Values.amf.sst }}"
+          sd: "{{ .Values.amf.sd }}"
+    sbi:
+        server:
+          no_tls: true
+        client:
+          no_tls: true
+    scp:
+     sbi:
+       name: {{ .Release.Name }}-scp.{{ .Release.Namespace }}.svc.cluster.local
+    nrf:
+     sbi:
+       name: {{ .Release.Name }}-nrf.{{ .Release.Namespace }}.svc.cluster.local     

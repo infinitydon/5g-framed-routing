@@ -1,0 +1,56 @@
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ueransim-ue-2
+  labels:
+    app: ueransim-ue-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ueransim-ue-2
+  template:
+    metadata:
+      annotations:
+         k8s.v1.cni.cncf.io/networks: '[
+                 { "name": "{{ .Release.Name }}-nad-ue-second-net",
+                   "ips": [ {{- cat .Values.ue2.multusIP "/" .Values.ue2.multusNetworkMask | nospace | quote }} ] }
+         ]'    
+      labels:
+        mode: simulator
+        app: ueransim-ue-2
+    spec:
+      serviceAccountName: {{ .Release.Name }}-k8s-wait-for
+      initContainers:     
+      - name: wait-for-gnb
+        image: "{{ .Values.k8swait.repository }}:{{ .Values.k8swait.tag }}"
+        imagePullPolicy: {{ .Values.k8swait.pullPolicy }}
+        args:
+          - "pod"
+          - "-lapp=ueransim-gnb"                  
+      containers:
+      - name: ue
+        image: "{{ .Values.ueransim.repository }}:{{ .Values.ueransim.tag }}"
+        imagePullPolicy: {{ .Values.ueransim.pullPolicy }}        
+        command: ["/bin/sh", "-c"]
+        args:
+        - apt-get -qq update;apt-get -qq install tcpdump -y;cp -rf /tmp/ue.yaml /UERANSIM/build/open5gs-ue.yaml;
+          gnbIP=$(getent hosts {{ .Release.Name }}-gnb-svc | awk '{ print $1 }');
+          sed -i "s/gNBpodIP/$gnbIP/g" /UERANSIM/build/open5gs-ue.yaml;
+          sleep 10;
+          ./nr-ue -c open5gs-ue.yaml;
+        lifecycle:
+          postStart:
+           exec:
+             command: ["/bin/sh", "-c", "until ip addr | grep -q uesimtun0; do sleep 5; echo waiting for ue tunnel to be up; done;
+              ip route add 10.45.0.0/16 dev uesimtun0; ip route add 172.16.100.0/24 dev uesimtun0"] 
+        securityContext:
+          privileged: true        
+        volumeMounts:
+        - name: ueransim-ue-2-config
+          mountPath: /tmp/ue.yaml
+          subPath: open5gs-ue-2.yaml
+      volumes:
+        - name: ueransim-ue-2-config
+          configMap:
+            name: {{ .Release.Name }}-ueransim-config

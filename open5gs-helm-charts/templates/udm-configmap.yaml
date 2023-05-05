@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-udm-config
+  labels:
+    epc-mode: udm
+data:
+  udm.yaml: |
+    logger:
+        file: /var/log/open5gs/udm.log
+
+    udm:
+      sbi:
+        - addr: 0.0.0.0
+          advertise: {{ .Release.Name }}-udm.{{ .Release.Namespace }}.svc.cluster.local
+      discovery:
+         delegated: no           
+    sbi:
+        server:
+          no_tls: true
+        client:
+          no_tls: true                
+    scp:
+     sbi:
+       name: {{ .Release.Name }}-scp.{{ .Release.Namespace }}.svc.cluster.local
+    nrf:
+     sbi:
+       name: {{ .Release.Name }}-nrf.{{ .Release.Namespace }}.svc.cluster.local 

@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-smf-config
+  labels:
+    epc-mode: smf
+data:
+  smf.yaml: |
+    logger:
+        file: /var/log/open5gs/smf.log
+
+    parameter:
+        no_ipv6: true
+    smf:
+        sbi:
+        - addr: 0.0.0.0
+          advertise: {{ .Release.Name }}-smf.{{ .Release.Namespace }}.svc.cluster.local
+        discovery:
+           delegated: no           
+        metrics:
+          - addr: 0.0.0.0
+            port: 9091          
+        pfcp:
+           dev: {{ .Values.k8s.interface }}
+        gtpc:
+           dev: {{ .Values.k8s.interface }}
+        gtpu:
+           dev: {{ .Values.k8s.interface }}
+        subnet:
+         - addr: 10.45.0.1/16
+           dnn: {{ .Values.dnn }}
+        dns:
+          - 8.8.8.8
+          - 8.8.4.4
+        mtu: 1400
+    sbi:
+        server:
+          no_tls: true
+        client:
+          no_tls: true   
+    scp:
+     sbi:
+       name: {{ .Release.Name }}-scp.{{ .Release.Namespace }}.svc.cluster.local
+    nrf:
+     sbi:
+       name: {{ .Release.Name }}-nrf.{{ .Release.Namespace }}.svc.cluster.local 
+
+    upf:
+      pfcp:
+        - name: {{ .Release.Name }}-upf-svc
+          dnn: {{ .Values.dnn }}
